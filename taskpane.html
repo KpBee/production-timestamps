@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Production Timestamps</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>body{font:14px system-ui,Segoe UI,sans-serif;margin:18px;color:#202a36}h2{font-size:19px}#state{padding:10px;background:#edf6f2;border-radius:6px}small{display:block;margin-top:14px;line-height:1.5;color:#556}</style>
+</head>
+<body>
+  <h2>Production Timestamps</h2>
+  <p id="state">Connecting to Excel...</p>
+  <small>Keep this pane open while updating statuses. A change to column G stamps column J (In Progress) or K (Completed). Column L calculates hours. Existing timestamps are preserved. Time zone: India (IST).</small>
+  <script>
+  const targetSheet = "Process Workflow";
+  const statusBox = document.getElementById("state");
+  const timeZoneOffsetMinutes = 330;
+  let processing = Promise.resolve();
+  function excelNowIST() {
+    return 25569 + (Date.now() + timeZoneOffsetMinutes * 60000) / 86400000;
+  }
+  async function processStatus(event) {
+    // Multiple collaborators can receive the same event: only its originating editor stamps it.
+    if (event.source && event.source !== "Local") return;
+    let a = event.address.split("!").pop().replace(/\$/g, "");
+    const m = /^G([2-9][0-9]*)$/i.exec(a);
+    if (!m) return; // Single-cell status changes only, not bulk pastes.
+    const row = Number(m[1]);
+    await Excel.run(async context => {
+      const s = context.workbook.worksheets.getItem(targetSheet);
+      const status = s.getRange(`G${row}`);
+      const start = s.getRange(`J${row}`);
+      const finish = s.getRange(`K${row}`);
+      status.load("values"); start.load("values"); finish.load("values");
+      await context.sync();
+      const v = String(status.values[0][0] || "").trim().toLowerCase();
+      const startVal = start.values[0][0];
+      const finishVal = finish.values[0][0];
+      if (v === "in progress" && (startVal === "" || startVal == null)) {
+        start.values = [[excelNowIST()]];
+        start.numberFormat = [["dd-mmm-yyyy hh:mm AM/PM"]];
+      } else if (v === "completed" && (finishVal === "" || finishVal == null)) {
+        finish.values = [[excelNowIST()]];
+        finish.numberFormat = [["dd-mmm-yyyy hh:mm AM/PM"]];
+        if (typeof startVal === "number") {
+          const hours = s.getRange(`L${row}`);
+          hours.formulas = [[`=IF(OR(J${row}="",K${row}=""),"",ROUND((K${row}-J${row})*24,2))`]];
+          hours.numberFormat = [["0.00"]];
+        }
+      }
+      await context.sync();
+    });
+  }
+  Office.onReady(async info => {
+    if (info.host !== Office.HostType.Excel) {
+      statusBox.textContent = "Open this add-in in Excel.";
+      return;
+    }
+    try {
+      await Excel.run(async context => {
+        const s = context.workbook.worksheets.getItemOrNullObject(targetSheet);
+        await context.sync();
+        if (s.isNullObject) throw new Error(`Worksheet '${targetSheet}' not found.`);
+        s.onChanged.add(e => {
+          processing = processing.then(() => processStatus(e)).catch(err => {
+            statusBox.textContent = `Tracking error: ${err.message || err}`;
+          });
+        });
+        await context.sync();
+      });
+      statusBox.textContent = "Tracking active — change a Status cell in column G.";
+    } catch(err) {
+      statusBox.textContent = `Cannot start: ${err.message || err}`;
+    }
+  });
+  </script>
+</body>
+</html>
