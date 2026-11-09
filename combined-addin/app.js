@@ -166,15 +166,43 @@
     const b=rows.map(r=>"<tr>"+r.map(v=>"<td>"+clean(v)+"</td>").join("")+"</tr>").join("");
     $(id).innerHTML="<table>"+h+"<tbody>"+b+"</tbody></table>"+(rows.length?"":"<p>No logged sessions yet.</p>");
   }
+  function formatClock(value){
+    if(typeof value!=="number")return "—";
+    const seconds=Math.round((((value%1)+1)%1)*86400)%86400;
+    const hh=Math.floor(seconds/3600),mm=Math.floor((seconds%3600)/60),ss=seconds%60;
+    return String(hh%12||12).padStart(2,"0")+":"+String(mm).padStart(2,"0")+":"+String(ss).padStart(2,"0")+(hh>=12?" PM":" AM");
+  }
+  async function showRow(){
+    const n=Number($("row").value);
+    if(!Number.isInteger(n)||n<FIRST||n>LAST){
+      $("row-state").textContent="Select row 11–30.";
+      return;
+    }
+    const values=await Excel.run(async c=>{
+      const range=c.workbook.worksheets.getItem(SHEET).getRange("A"+n+":F"+n);
+      range.load("values");await c.sync();return range.values[0];
+    });
+    const [activity,,start,end,hours,status]=values;
+    const minutes=typeof start==="number"&&typeof end==="number"&&end>=start?(end-start)*1440:null;
+    $("row-state").textContent="Row "+n+" · "+(activity||"No activity")+" · "+(status||"No status")+"\nStart: "+formatClock(start)+" · End: "+formatClock(end)+"\nElapsed: "+(minutes===null?"—":minutes.toFixed(2)+" minutes")+" · Excel hours: "+(typeof hours==="number"?hours.toFixed(2):"—")+"\nShort sessions can display 0.00 hours because the workbook rounds to 2 decimals.";
+  }
+  $("inspect").onclick=()=>showRow().catch(e=>message("Inspect error: "+e.message,true));
+  $("row").onchange=()=>showRow().catch(e=>message("Inspect error: "+e.message,true));
   async function selectedDailyRow(){
     return Excel.run(async c=>{
       const active=c.workbook.worksheets.getActiveWorksheet();
       const selected=c.workbook.getSelectedRange();
       active.load("name");selected.load(["rowIndex","rowCount"]);
       await c.sync();
+      const entered=$("row").value.trim();
+      if(entered){
+        const row=Number(entered);
+        if(!Number.isInteger(row)||row<FIRST||row>LAST)throw Error("Row must be between 11 and 30.");
+        return row;
+      }
       const row=selected.rowIndex+1;
-      if(active.name!==SHEET)throw Error("Select an activity cell in the Process Workflow worksheet.");
-      if(row<FIRST||row>LAST||selected.rowCount!==1)throw Error("Select one cell in a Daily Time Log row (11–30).");
+      if(active.name!==SHEET)throw Error("Select a cell in Process Workflow or enter a Daily row number.");
+      if(row<FIRST||row>LAST||selected.rowCount!==1)throw Error("Select one Daily Time Log row (11–30), or enter its number.");
       return row;
     });
   }
@@ -191,6 +219,7 @@
         await c.sync();
       });
       await stamp(row);
+      await showRow();
     }catch(e){message("Cannot "+mode.toLowerCase()+": "+e.message,true);}
   }
   $("begin").onclick=()=>updateSelected("In Progress");
@@ -202,7 +231,7 @@
   $("refresh").onclick=()=>refresh().catch(e=>message("Refresh error: "+e.message,true));
   Office.onReady(async info=>{
     if(info.host!==Office.HostType.Excel){message("Open this add-in inside Microsoft Excel.",true);return;}
-    try{await verify();await refresh();}
+    try{await verify();await refresh();await showRow();}
     catch(e){message("NOT TRACKING: "+e.message,true);}
   });
 })();
