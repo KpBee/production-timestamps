@@ -1,0 +1,23 @@
+name: Verify Combined Excel Add-in
+on:
+  push:
+    paths:
+      - "combined-addin/**"
+      - ".github/workflows/verify-combined-addin.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: JavaScript syntax
+        run: node --check combined-addin/app.js
+      - name: Simulated Excel workflow test
+        run: node combined-addin/test.js
+      - name: Validate XML manifest
+        run: python3 -c "import xml.etree.ElementTree as E; x=E.parse('combined-addin/manifest.xml'); assert 'OfficeApp' in x.getroot().tag"
