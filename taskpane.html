@@ -10,7 +10,7 @@
 <body>
   <h2>Production Timestamps</h2>
   <p id="state">Connecting to Excel...</p>
-  <small>Keep this pane open while updating statuses. A change to column G stamps column J (In Progress) or K (Completed). Column L calculates hours. Existing timestamps are preserved. Time zone: India (IST).</small>
+  <small>Keep this pane open while updating statuses. Daily Status F11:F30 stamps Start/End C/D and the existing worksheet calculates hours. Monthly Status D44:D50 stamps Start/End J/K and Completed On E. Existing timestamps are preserved. Time zone: India (IST).</small>
   <script>
   const targetSheet = "Process Workflow";
   const statusBox = document.getElementById("state");
@@ -20,32 +20,46 @@
     return 25569 + (Date.now() + timeZoneOffsetMinutes * 60000) / 86400000;
   }
   async function processStatus(event) {
-    // Multiple collaborators can receive the same event: only its originating editor stamps it.
     if (event.source && event.source !== "Local") return;
-    let a = event.address.split("!").pop().replace(/\$/g, "");
-    const m = /^G([2-9][0-9]*)$/i.exec(a);
-    if (!m) return; // Single-cell status changes only, not bulk pastes.
-    const row = Number(m[1]);
+    const addr = event.address.split("!").pop().replace(/\$/g, "");
+    const daily = /^F(1[1-9]|2[0-9]|30)$/i.exec(addr);
+    const monthly = /^D(4[4-9]|50)$/i.exec(addr);
+    if (!daily && !monthly) return;
+    const row = Number((daily || monthly)[1]);
     await Excel.run(async context => {
-      const s = context.workbook.worksheets.getItem(targetSheet);
-      const status = s.getRange(`G${row}`);
-      const start = s.getRange(`J${row}`);
-      const finish = s.getRange(`K${row}`);
+      const sheet = context.workbook.worksheets.getItem(targetSheet);
+      const status = sheet.getRange((daily ? "F" : "D") + row);
+      const start = sheet.getRange((daily ? "C" : "J") + row);
+      const finish = sheet.getRange((daily ? "D" : "K") + row);
+      const completedOn = monthly ? sheet.getRange("E" + row) : null;
       status.load("values"); start.load("values"); finish.load("values");
+      if (completedOn) completedOn.load("values");
       await context.sync();
       const v = String(status.values[0][0] || "").trim().toLowerCase();
-      const startVal = start.values[0][0];
-      const finishVal = finish.values[0][0];
-      if (v === "in progress" && (startVal === "" || startVal == null)) {
-        start.values = [[excelNowIST()]];
-        start.numberFormat = [["dd-mmm-yyyy hh:mm AM/PM"]];
-      } else if (v === "completed" && (finishVal === "" || finishVal == null)) {
-        finish.values = [[excelNowIST()]];
-        finish.numberFormat = [["dd-mmm-yyyy hh:mm AM/PM"]];
-        if (typeof startVal === "number") {
-          const hours = s.getRange(`L${row}`);
-          hours.formulas = [[`=IF(OR(J${row}="",K${row}=""),"",ROUND((K${row}-J${row})*24,2))`]];
-          hours.numberFormat = [["0.00"]];
+      const startValue = start.values[0][0];
+      const endValue = finish.values[0][0];
+      const nowSerial = excelNowIST();
+      const nowTime = nowSerial - Math.floor(nowSerial);
+      if (v === "in progress" && (startValue === "" || startValue == null)) {
+        start.values = [[nowTime]];
+        start.numberFormat = [["hh:mm AM/PM"]];
+      }
+      if (v === "completed") {
+        if (endValue === "" || endValue == null) {
+          finish.values = [[nowTime]];
+          finish.numberFormat = [["hh:mm AM/PM"]];
+        }
+        if (daily) {
+          const workDate = sheet.getRange("B" + row);
+          workDate.load("values"); await context.sync();
+          if (workDate.values[0][0] === "" || workDate.values[0][0] == null) {
+            workDate.values = [[Math.floor(nowSerial)]];
+            workDate.numberFormat = [["dd-mmm-yyyy"]];
+          }
+        }
+        if (completedOn && (completedOn.values[0][0] === "" || completedOn.values[0][0] == null)) {
+          completedOn.values = [[Math.floor(nowSerial)]];
+          completedOn.numberFormat = [["dd-mmm-yyyy"]];
         }
       }
       await context.sync();
@@ -68,7 +82,7 @@
         });
         await context.sync();
       });
-      statusBox.textContent = "Tracking active — change a Status cell in column G.";
+      statusBox.textContent = "Tracking active — daily status F11:F30 and monthly status D44:D50.";
     } catch(err) {
       statusBox.textContent = `Cannot start: ${err.message || err}`;
     }
