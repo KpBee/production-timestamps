@@ -6,8 +6,8 @@
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Production Productivity Tracker"/>
   <Description DefaultValue="Production workflow timestamps, task sessions, and productivity analysis."/>
-  <IconUrl DefaultValue="https://kpbee.github.io/production-timestamps/icon.svg"/>
-  <HighResolutionIconUrl DefaultValue="https://kpbee.github.io/production-timestamps/icon.svg"/>
+  <IconUrl DefaultValue="https://kpbee.github.io/production-timestamps/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://kpbee.github.io/production-timestamps/icon-64.png"/>
   <SupportUrl DefaultValue="https://github.com/KpBee/production-timestamps"/>
   <AppDomains><AppDomain>https://kpbee.github.io</AppDomain></AppDomains>
   <Hosts><Host Name="Workbook"/></Hosts>
