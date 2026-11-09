@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="TaskPaneApp">
   <Id>4cf5f7b8-c31e-4a44-80b6-8c87e065e69b</Id>
-  <Version>1.1.0.0</Version>
+  <Version>1.2.0.0</Version>
   <ProviderName>Bee Team</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="Production Productivity Tracker"/>
-  <Description DefaultValue="Production workflow timestamps, task sessions, and productivity analysis."/>
+  <DisplayName DefaultValue="Daily Workflow Timestamps"/>
+  <Description DefaultValue="Start and completion timestamps only in Process Workflow Daily Time Log."/>
   <IconUrl DefaultValue="https://kpbee.github.io/production-timestamps/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://kpbee.github.io/production-timestamps/icon-64.png"/>
   <SupportUrl DefaultValue="https://github.com/KpBee/production-timestamps"/>
