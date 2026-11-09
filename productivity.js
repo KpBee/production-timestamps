@@ -16,9 +16,23 @@ $("pr-activity").innerHTML=ACTIVITIES.map((v,i)=>'<option value="'+i+'">'+v+'</o
 function message(s,error=false){$("pr-message").textContent=s;$("pr-message").style.color=error?"#b91c1c":"#166534";}
 async function ensure(){
   await Excel.run(async c=>{
-    let s=c.workbook.worksheets.getItemOrNullObject(SHEET);await c.sync();
-    if(s.isNullObject){s=c.workbook.worksheets.add(SHEET);s.getRange("A1:I1").values=[HEAD];const t=s.tables.add("A1:I1",true);t.name=TABLE;s.getRange("A1:I1").format.fill.color="#107c41";s.getRange("A1:I1").format.font.color="#ffffff";s.getRange("A:I").format.columnWidth=130;s.freezePanes.freezeRows(1)}
-    else {let h=s.getRange("A1:I1");h.load("values");await c.sync();if(h.values[0].join("|")!==HEAD.join("|"))throw Error("Productivity Log has different headers; nothing was changed.");}
+    let s=c.workbook.worksheets.getItemOrNullObject(SHEET);
+    await c.sync();
+    if(s.isNullObject){
+      s=c.workbook.worksheets.add(SHEET);
+      s.getRange("A1:I1").values=[HEAD];
+      s.getRange("A1:I1").format.fill.color="#107c41";
+      s.getRange("A1:I1").format.font.color="#ffffff";
+      s.getRange("A:I").format.columnWidth=130;
+    }else{
+      const h=s.getRange("A1:I1");
+      h.load("values");
+      await c.sync();
+      const existing=h.values[0];
+      if(existing.some(v=>v!==""&&v!==null)&&existing.join("|")!==HEAD.join("|"))
+        throw Error("Productivity Log already has different column headings. It was not changed.");
+      if(existing.every(v=>v===""||v===null))h.values=[HEAD];
+    }
     await c.sync();
   });
 }
@@ -27,8 +41,14 @@ async function save(start,end,person,activity,status,notes){
   if(hours<=0||hours>24)throw Error("Session duration must be between 0 and 24 hours.");
   await ensure();
   await Excel.run(async c=>{
-    const t=c.workbook.worksheets.getItem(SHEET).tables.getItem(TABLE);
-    t.rows.add(null,[[new Date().toISOString(),person,activity,start.toLocaleDateString("en-CA"),start.toISOString(),end.toISOString(),Math.round(hours*100)/100,status,notes]]);
+    const s=c.workbook.worksheets.getItem(SHEET);
+    const used=s.getUsedRange(true);
+    used.load(["rowCount","rowIndex"]);
+    await c.sync();
+    const row=used.rowIndex+used.rowCount+1;
+    if(row>100000)throw Error("Productivity log exceeds 100,000 rows.");
+    const date=start.getFullYear()+"-"+String(start.getMonth()+1).padStart(2,"0")+"-"+String(start.getDate()).padStart(2,"0");
+    s.getRange("A"+row+":I"+row).values=[[new Date().toISOString(),person,activity,date,start.toISOString(),end.toISOString(),Math.round(hours*100)/100,status,notes]];
     await c.sync();
   });
 }
@@ -74,8 +94,8 @@ $("pr-start").onclick=()=>{
 };
 $("pr-stop").onclick=async()=>{
   if(!active)return;
-  try{await save(active.start,new Date(),active.person,active.activity,active.status,active.notes);active=null;$("pr-start").disabled=false;$("pr-stop").disabled=true;message("Session saved in Productivity Log.");await refresh();}catch(e){message(e.message,true);}
+  try{message("Saving session…");await save(active.start,new Date(),active.person,active.activity,active.status,active.notes);active=null;$("pr-start").disabled=false;$("pr-stop").disabled=true;message("Session saved in Productivity Log.");await refresh();}catch(e){message(e.message,true);}
 };
 $("pr-refresh").onclick=()=>refresh().catch(e=>message(e.message,true));
-Office.onReady(info=>{if(info.host===Office.HostType.Excel)refresh().catch(e=>message(e.message,true));else message("Open within Excel.",true);});
+Office.onReady(info=>{if(info.host===Office.HostType.Excel){message("Excel connected. Start a session or refresh.");refresh().catch(e=>message("Dashboard read failed: "+e.message,true));}else message("Open within Excel.",true);});
 })();
