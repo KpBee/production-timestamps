@@ -126,10 +126,11 @@
   async function refresh(){
     const result=await Excel.run(async c=>{
       const source=c.workbook.worksheets.getItem(SHEET),rows=source.getRange("A11:G30");
+      const monthly=source.getRange("A44:G50");monthly.load("values");
       const history=c.workbook.worksheets.getItemOrNullObject(HISTORY);await c.sync();
       rows.load("values");let used=null;
       if(!history.isNullObject){used=history.getUsedRange(true);used.load("values");}
-      await c.sync();return {daily:rows.values,history:used?used.values.slice(1):[]};
+      await c.sync();return {daily:rows.values,monthly:monthly.values,history:used?used.values.slice(1):[]};
     });
     const valid=result.history.filter(r=>typeof r[6]==="number");
     const sum=valid.reduce((v,r)=>v+r[6],0);
@@ -138,6 +139,12 @@
       const s=norm(r[5]);if(s==="in progress")counts.active++;if(s==="completed")counts.completed++;if(s==="blocked")counts.blocked++;
     }
     $("totals").textContent=valid.length+" logged sessions | "+fmt(sum)+" hours | "+counts.active+" in progress | "+counts.blocked+" blocked";
+    const today=Math.floor(excelIST());
+    const overdue=result.monthly.filter(r=>{
+      const due=r[2],status=norm(r[3]),done=r[4];
+      return typeof due==="number"&&due<today&&!["completed","not required"].includes(status)&&empty(done);
+    }).map(r=>String(r[0]));
+    $("overdue").textContent=overdue.length?overdue.join("; "):"No overdue monthly activities with recorded due dates.";
     const byTask=new Map(),byPerson=new Map();
     for(const r of valid){
       const name=String(r[2]),person=String(r[3]||"Unassigned"),hours=Number(r[6]);
