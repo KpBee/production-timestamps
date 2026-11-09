@@ -159,6 +159,35 @@
     const b=rows.map(r=>"<tr>"+r.map(v=>"<td>"+clean(v)+"</td>").join("")+"</tr>").join("");
     $(id).innerHTML="<table>"+h+"<tbody>"+b+"</tbody></table>"+(rows.length?"":"<p>No logged sessions yet.</p>");
   }
+  async function selectedDailyRow(){
+    return Excel.run(async c=>{
+      const active=c.workbook.worksheets.getActiveWorksheet();
+      const selected=c.workbook.getSelectedRange();
+      active.load("name");selected.load(["rowIndex","rowCount"]);
+      await c.sync();
+      const row=selected.rowIndex+1;
+      if(active.name!==SHEET)throw Error("Select an activity cell in the Process Workflow worksheet.");
+      if(row<FIRST||row>LAST||selected.rowCount!==1)throw Error("Select one cell in a Daily Time Log row (11–30).");
+      return row;
+    });
+  }
+  async function updateSelected(mode){
+    try{
+      if(!enabled)throw Error("The add-in is not connected to the verified Daily Workflow.");
+      const row=await selectedDailyRow();
+      await Excel.run(async c=>{
+        const s=c.workbook.worksheets.getItem(SHEET);
+        const activity=s.getRange("A"+row);
+        activity.load("values");await c.sync();
+        if(empty(activity.values[0][0]))throw Error("Choose an Activity on row "+row+" first.");
+        s.getRange("F"+row).values=[[mode]];
+        await c.sync();
+      });
+      await stamp(row);
+    }catch(e){message("Cannot "+mode.toLowerCase()+": "+e.message,true);}
+  }
+  $("begin").onclick=()=>updateSelected("In Progress");
+  $("finish").onclick=()=>updateSelected("Completed");
   $("sync").onclick=async()=>{
     try{await recordCompletedRows();await refresh();message("Completed daily rows synchronized. Existing history is preserved.");}
     catch(e){message("Synchronization error: "+e.message,true);}
