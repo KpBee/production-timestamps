@@ -1,8 +1,8 @@
 """Sample 10:10 IST production reminder dispatcher.
 Safe default: preview only. SharePoint read access needs separate authorization.
-Dependencies: openpyxl, requests. Gmail SMTP is used only when SEND_ENABLED=true.
+Dependencies: openpyxl, requests. Teams webhook delivery is opt-in.
 """
-import base64, datetime as dt, email.message, io, json, os, pathlib, smtplib, sys
+import base64, datetime as dt, io, json, os, pathlib, sys
 import openpyxl
 import requests
 
@@ -42,19 +42,18 @@ def items(path, now=None):
     return results
 
 def deliver(body):
-    """Send one consolidated test reminder from the authorized Gmail account."""
-    sender="kp@gobeeteam.com"
-    password=os.environ["GMAIL_APP_PASSWORD"].replace(" ", "")
-    if not password:
-        raise RuntimeError("GMAIL_APP_PASSWORD is not configured")
-    msg=email.message.EmailMessage()
-    msg["From"]=sender
-    msg["To"]=", ".join(RECIPIENTS)
-    msg["Subject"]="Production Tracker: incomplete tasks at 10:10 AM IST"
-    msg.set_content(body)
-    with smtplib.SMTP_SSL("smtp.gmail.com",465,timeout=30) as server:
-        server.login(sender,password)
-        server.send_message(msg)
+    """Post Teams Workflows adaptive card; webhook URL must be a GitHub secret."""
+    webhook=os.environ.get("TEAMS_WEBHOOK_URL")
+    if not webhook:
+        raise RuntimeError("TEAMS_WEBHOOK_URL is not configured")
+    payload={"type":"message","attachments":[{
+        "contentType":"application/vnd.microsoft.card.adaptive",
+        "content":{"$schema":"http://adaptivecards.io/schemas/adaptive-card.json",
+            "type":"AdaptiveCard","version":"1.4",
+            "body":[{"type":"TextBlock","text":"Bee Team Production Reminders","weight":"Bolder","size":"Medium"},
+                    {"type":"TextBlock","text":body[:12000],"wrap":True}]}}]}
+    response=requests.post(webhook,json=payload,timeout=30)
+    response.raise_for_status()
 
 def main():
     url=os.environ.get('WORKBOOK_SHARE_URL')
@@ -68,7 +67,7 @@ def main():
         return 2
     pending=items(source)
     if not pending:
-        print("No dated outstanding tasks. No email.")
+        print("No dated outstanding tasks. No Teams reminder.")
         return 0
     now=dt.datetime.now(IST)
     day=now.date().isoformat()
@@ -76,14 +75,11 @@ def main():
         f"- {x['task']} | {x['date']} | {x['status']} | Excel row {x['row']}" for x in pending)
     print(json.dumps({"date":day,"count":len(pending),"tasks":pending},indent=2))
     if os.getenv("SEND_ENABLED")!="true":
-        print("DRY RUN: no email sent.")
+        print("DRY RUN: no Teams reminder sent.")
         return 0
-    # Use persistent storage on the self-hosted runner, not an ephemeral GitHub workspace.
-    log=pathlib.Path(os.environ['REMINDER_LOG_PATH'])
-    log.parent.mkdir(parents=True,exist_ok=True)
-    if log.exists() and day in log.read_text(encoding="utf-8").splitlines():
-        print("Already sent on this date; skipping.")
-        return 0
+    deliver(body)
+    print("Teams webhook accepted reminder submission.")
+    return 0
     deliver(body)
     with log.open("a",encoding="utf-8") as f:f.write(day+"\n")
     print("Email accepted by Microsoft Graph.")
