@@ -40,12 +40,16 @@
   async function handle(ev){
     if(!enabled|| (ev.source&&ev.source!=="Local"))return;
     if(ev.worksheetId&&ev.worksheetId!==sheetId)return;
-    const a=String(ev.address||"").split("!").pop().replace(/\$/g,"");
-    const m=/^F(\d{1,3})$/i.exec(a);
+    // Excel can report a single cell, a pasted range, or a whole edited row.
+    // Only react when the changed rectangle intersects the Status column (F).
+    const address=String(ev.address||"").split("!").pop().replace(/\$/g,"").toUpperCase();
+    const m=/^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/.exec(address);
     if(!m)return;
-    const r=Number(m[1]);
-    if(r<FIRST||r>LAST)return;
-    await stamp(r);
+    const col=s=>[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);
+    const left=col(m[1]),right=col(m[3]||m[1]);
+    if(left>6||right<6)return;
+    const first=Math.max(FIRST,Number(m[2])),last=Math.min(LAST,Number(m[4]||m[2]));
+    for(let r=first;r<=last;r++)await stamp(r);
   }
   async function stamp(row){
     let completed=false,activity="";
