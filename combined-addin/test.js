@@ -66,6 +66,18 @@ const settle=async()=>{for(let i=0;i<20;i++)await new Promise(resolve=>setImmedi
  await settle();
  assert.equal(get("Productivity History",1,0),savedKey);
  assert.equal(get("Productivity History",2,0),"");
+ // Pasting a two-row status range must capture timestamps on both rows.
+ set(sheetName,11,0,"AP Invoice Processing");
+ set(sheetName,11,5,"In Progress");
+ for(const fn of handlers.slice())fn({address:"F11:F12",worksheetId:sheetName,source:"Local"});
+ await settle();
+ assert.equal(typeof get(sheetName,11,2),"number");
+ assert.equal(typeof get(sheetName,11,1),"number");
+ // A multi-column edit containing column F must also be handled.
+ set(sheetName,11,5,"Completed");
+ for(const fn of handlers.slice())fn({address:"E12:G12",worksheetId:sheetName,source:"Local"});
+ await settle();
+ assert.equal(typeof get(sheetName,11,3),"number");
  set(sheetName,43,3,"In Progress");
  for(const fn of handlers.slice())fn({address:"D44",worksheetId:sheetName,source:"Local"});
  await settle();
