@@ -1,0 +1,24 @@
+name: Prototype production reminders (disabled until configured)
+on:
+  schedule:
+    # 04:40 UTC = 10:10 IST; GitHub schedules may be delayed.
+    - cron: '40 4 * * 1-5'
+  workflow_dispatch:
+jobs:
+  preview-reminders:
+    if: ${{ vars.ENABLE_PRODUCTION_REMINDERS == 'true' }}
+    runs-on: [self-hosted, Windows, production-reminders]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python dependencies
+        run: python -m pip install openpyxl requests
+      - name: Read current shared workbook and optionally send
+        env:
+          WORKBOOK_PATH: ${{ vars.PRODUCTION_WORKBOOK_PATH }}
+          REMINDER_LOG_PATH: ${{ vars.REMINDER_LOG_PATH }}
+          SEND_ENABLED: ${{ vars.SEND_ENABLED }}
+          MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
+          MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
+          MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
+          MAIL_SENDER_UPN: ${{ vars.MAIL_SENDER_UPN }}
+        run: python reminder-addin/scheduled_reminders.py
