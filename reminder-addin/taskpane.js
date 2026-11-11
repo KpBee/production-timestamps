@@ -5,10 +5,10 @@ const normalize=value=>String(value??'').trim();
 const completed=value=>normalize(value).toLowerCase()==='completed';
 function excelDate(value){
   if(typeof value==='number' && value>1){const d=new Date(Date.UTC(1899,11,30)+value*86400000);return d.toISOString().slice(0,10);}
-  if(typeof value==='string' && /^\\d{4}-\\d{2}-\\d{2}/.test(value))return value.slice(0,10);
+  if(typeof value==='string' && /^\d{4}-\d{2}-\d{2}/.test(value))return value.slice(0,10);
   return null;
 }
-const todayIST=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const todayIST=()=>{const p=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const g=t=>p.find(x=>x.type===t).value;return g('year')+'-'+g('month')+'-'+g('day');};
 function inspectRows(values,today){
  const tasks=[];
  for(const r of [...values.slice(10,30),...values.slice(35,40)]){
