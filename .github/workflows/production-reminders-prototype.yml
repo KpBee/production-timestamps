@@ -19,10 +19,9 @@ jobs:
         env:
           WORKBOOK_PATH: ${{ vars.PRODUCTION_WORKBOOK_PATH }}
           WORKBOOK_SHARE_URL: ${{ vars.WORKBOOK_SHARE_URL }}
-          REMINDER_LOG_PATH: ${{ vars.REMINDER_LOG_PATH }}
           SEND_ENABLED: ${{ vars.SEND_ENABLED }}
           MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
           MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
           MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
-          MAIL_SENDER_UPN: ${{ vars.MAIL_SENDER_UPN }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: python reminder-addin/scheduled_reminders.py
