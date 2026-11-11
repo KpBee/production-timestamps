@@ -16,6 +16,10 @@ function inspectRows(values,today){
   if(!activity||!date||date>today||completed(status))continue;
   tasks.push({activity,date,status:status||'Not marked'});
  }
+ for(const r of values.slice(43,50)){
+  const activity=normalize(r[0]),date=excelDate(r[2]),status=normalize(r[3]);
+  if(activity&&date&&date<=today&&!completed(status))tasks.push({activity,date,status:status||'Not marked'});
+ }
  return tasks;
 }
 async function scan(){
@@ -23,7 +27,7 @@ async function scan(){
  try{
   const tasks=await Excel.run(async context=>{
    const sheet=context.workbook.worksheets.getItem('Process Workflow');
-   const range=sheet.getRange('A1:G40');range.load('values');await context.sync();
+   const range=sheet.getRange('A1:G50');range.load('values');await context.sync();
    return inspectRows(range.values,todayIST());
   });
   output.replaceChildren();
