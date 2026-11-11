@@ -15,6 +15,7 @@ jobs:
       - name: Read current shared workbook and optionally send
         env:
           WORKBOOK_PATH: ${{ vars.PRODUCTION_WORKBOOK_PATH }}
+          WORKBOOK_SHARE_URL: ${{ vars.WORKBOOK_SHARE_URL }}
           REMINDER_LOG_PATH: ${{ vars.REMINDER_LOG_PATH }}
           SEND_ENABLED: ${{ vars.SEND_ENABLED }}
           MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
