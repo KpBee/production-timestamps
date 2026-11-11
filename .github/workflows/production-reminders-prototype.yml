@@ -6,8 +6,11 @@ on:
   workflow_dispatch:
 jobs:
   preview-reminders:
+    concurrency:
+      group: production-reminders-daily
+      cancel-in-progress: false
     if: ${{ vars.ENABLE_PRODUCTION_REMINDERS == 'true' }}
-    runs-on: [self-hosted, Windows, production-reminders]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install Python dependencies
