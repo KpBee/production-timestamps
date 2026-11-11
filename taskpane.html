@@ -60,12 +60,14 @@ async function detect(){
 async function stamp(event){
   if(event.source&&event.source!=="Local")return;
   if(event.worksheetId&&event.worksheetId!==activeSection.sheetId)return;
-  const address=String(event.address||"").split("!").pop().replace(/\$/g,"");
-  const match=/^F(\d+)$/i.exec(address);
+  const address=String(event.address||"").split("!").pop().replace(/\$/g,"").toUpperCase();
+  const match=/^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/.exec(address);
   if(!match)return;
-  const row=Number(match[1]);
-  if(row<activeSection.first||row>activeSection.last)return;
-  await Excel.run(async c=>{
+  const col=s=>[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);
+  if(col(match[1])>6||col(match[3]||match[1])<6)return;
+  const first=Math.max(activeSection.first,Number(match[2]));
+  const last=Math.min(activeSection.last,Number(match[4]||match[2]));
+  for(let row=first;row<=last;row++)await Excel.run(async c=>{
     const s=c.workbook.worksheets.getItem(SHEET_NAME);
     const cells=s.getRange("A"+row+":F"+row);
     cells.load("values");await c.sync();
