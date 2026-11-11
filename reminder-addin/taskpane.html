@@ -2,10 +2,18 @@
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Bee Team Production Reminders</title>
 <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-<style>body{font:14px Segoe UI,Arial,sans-serif;margin:18px;color:#172b4d;background:#f7fafc}h1{font-size:19px}button{background:#174c80;color:white;border:0;border-radius:6px;padding:10px 14px;cursor:pointer}button:disabled{opacity:.4}section{background:white;padding:12px;border:1px solid #dbe3eb;border-radius:8px;margin:12px 0}small{color:#52677b}li{margin:9px 0}strong{color:#913b14}</style>
-</head><body><h1>Bee Team | Production Reminders</h1>
-<p><strong>PREVIEW ONLY — sending is disabled.</strong></p>
-<section><p>Checks scheduled work dated today or earlier where status is not Completed. Blank/unassigned tasks are skipped.</p><button id="scan" disabled>Preview incomplete tasks</button></section>
-<section><div id="result" aria-live="polite">Open a production workbook to begin.</div></section>
-<small>The 10:10 AM IST automated run requires an independently authorized scheduler with access to the latest saved workbook. This task pane is not a background scheduler.</small>
+<style>
+body{font:14px Segoe UI,Arial,sans-serif;margin:18px;color:#172b4d;background:#f7fafc;line-height:1.45}
+h1{font-size:19px;margin:0 0 8px}h2{font-size:15px;margin:0 0 8px}
+button{background:#174c80;color:white;border:0;border-radius:6px;padding:11px 13px;cursor:pointer;width:100%;font-weight:600;margin-top:8px}
+button.secondary{background:#e7eff7;color:#174c80}button:disabled{opacity:.45;cursor:not-allowed}
+section{background:white;padding:14px;border:1px solid #dbe3eb;border-radius:8px;margin:12px 0}
+small,.hint{color:#52677b}li{margin:8px 0}.warning{color:#994b00}
+</style></head><body>
+<h1>Bee Team | Production Reminders</h1>
+<p class="hint">Read incomplete tasks from this workbook and prepare a Teams chat reminder to Finny and Jawahar.</p>
+<section><h2>1. Review workbook</h2><button id="scan" disabled>Check incomplete tasks</button><div id="result" role="status">Open the Production Tracker to begin.</div></section>
+<section><h2>2. Open Teams reminder</h2><p class="hint">The reminder is prefilled in Teams. Review it and press <b>Send</b> in Teams to deliver. No separate credentials needed.</p>
+<button id="teams" disabled>Open Teams message for Finny + Jawahar</button></section>
+<small>The add-in does not send on a timer or post to a webhook. Excel must be open, and Teams requires your final Send click. No changes are made to workbook data or the timestamp add-in.</small>
 <script src="./taskpane.js"></script></body></html>
