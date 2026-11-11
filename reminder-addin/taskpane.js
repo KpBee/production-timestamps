@@ -1,39 +1,65 @@
-/* Bee Team reminder preview. No mail permissions, no sending, no workbook writes. */
+/* Standalone Office add-in. Read-only task analysis and user-initiated Teams chat draft. */
 const output=document.getElementById('result');
-const button=document.getElementById('scan');
+const scanButton=document.getElementById('scan');
+const teamsButton=document.getElementById('teams');
+let pending=[];
 const normalize=value=>String(value??'').trim();
-const completed=value=>normalize(value).toLowerCase()==='completed';
+const isComplete=value=>normalize(value).toLowerCase()==='completed';
 function excelDate(value){
-  if(typeof value==='number' && value>1){const d=new Date(Date.UTC(1899,11,30)+value*86400000);return d.toISOString().slice(0,10);}
-  if(typeof value==='string' && /^\d{4}-\d{2}-\d{2}/.test(value))return value.slice(0,10);
-  return null;
+ if(value instanceof Date && !isNaN(value)) return value.toISOString().slice(0,10);
+ if(typeof value==='number'&&value>1) return new Date(Date.UTC(1899,11,30)+Math.floor(value)*86400000).toISOString().slice(0,10);
+ if(typeof value==='string'&&/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0,10);
+ return null;
 }
-const todayIST=()=>{const p=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const g=t=>p.find(x=>x.type===t).value;return g('year')+'-'+g('month')+'-'+g('day');};
+function todayIST(){
+ const p=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+ const get=t=>p.find(x=>x.type===t).value;
+ return [get('year'),get('month'),get('day')].join('-');
+}
 function inspectRows(values,today){
- const tasks=[];
- for(const r of [...values.slice(10,30),...values.slice(35,40)]){
-  const activity=normalize(r[0]),date=excelDate(r[1]),status=normalize(r[5]);
-  if(!activity||!date||date>today||completed(status))continue;
-  tasks.push({activity,date,status:status||'Not marked'});
+ const tasks=[];let undated=0;
+ function add(row,rowNumber,section,dateColumn,statusColumn){
+  const activity=normalize(row[0]);if(!activity||activity.toLowerCase().startsWith('tip:')) return;
+  const date=excelDate(row[dateColumn]),status=normalize(row[statusColumn]);
+  if(isComplete(status))return;
+  if(!date){undated++;return;}
+  if(date<=today) tasks.push({section,activity,date,status:status||'Not marked',row:rowNumber});
  }
- for(const r of values.slice(43,50)){
-  const activity=normalize(r[0]),date=excelDate(r[2]),status=normalize(r[3]);
-  if(activity&&date&&date<=today&&!completed(status))tasks.push({activity,date,status:status||'Not marked'});
- }
- return tasks;
+ for(let i=10;i<29;i++) add(values[i],i+1,'Daily',1,5);
+ for(let i=34;i<39;i++) add(values[i],i+1,'Weekly',1,5);
+ for(let i=42;i<49;i++) add(values[i],i+1,'Monthly',2,3);
+ return {tasks,undated};
 }
 async function scan(){
- button.disabled=true;output.textContent='Reading workbook...';
+ scanButton.disabled=true;teamsButton.disabled=true;output.textContent='Reading current workbook...';
  try{
-  const tasks=await Excel.run(async context=>{
+  const result=await Excel.run(async context=>{
    const sheet=context.workbook.worksheets.getItem('Process Workflow');
-   const range=sheet.getRange('A1:G50');range.load('values');await context.sync();
+   const range=sheet.getRange('A1:G51');range.load('values');await context.sync();
    return inspectRows(range.values,todayIST());
   });
-  output.replaceChildren();
-  const title=document.createElement('p');title.textContent=tasks.length+' incomplete scheduled task(s) identified';output.append(title);
-  const ul=document.createElement('ul');tasks.forEach(task=>{let li=document.createElement('li');li.textContent=task.date+' | '+task.activity+' | '+task.status;ul.append(li);});output.append(ul);
-  const note=document.createElement('p');note.textContent='Sample recipients for future authorized testing: finny.jason@beeteam.in and jawahar.muthu@beeteam.in. No message was sent.';output.append(note);
- }catch(err){output.textContent='Unable to read Process Workflow: '+err.message;}finally{button.disabled=false;}
+  pending=result.tasks;output.replaceChildren();
+  const count=document.createElement('p');count.textContent=pending.length+' dated incomplete task(s) found';output.append(count);
+  if(result.undated){const warn=document.createElement('p');warn.className='warning';warn.textContent=result.undated+' task(s) without work/due dates were excluded; enter dates to include them.';output.append(warn);}
+  if(pending.length){
+   const ul=document.createElement('ul');for(const task of pending){const li=document.createElement('li');li.textContent=task.section+' | '+task.activity+' | '+task.date+' | '+task.status;ul.append(li);}output.append(ul);teamsButton.disabled=false;
+  }else{const p=document.createElement('p');p.textContent='No eligible incomplete dated tasks, so no reminder is prepared.';output.append(p);}
+ }catch(e){output.textContent='Could not read Process Workflow: '+(e.message||e);pending=[];}
+ finally{scanButton.disabled=false;}
 }
-Office.onReady(info=>{if(info.host===Office.HostType.Excel){button.disabled=false;output.textContent='Ready for a read-only preview.';button.addEventListener('click',scan);}});
+function openTeams(){
+ if(!pending.length)return;
+ const lines=['Bee Team Production Tracker — incomplete tasks','Checked '+todayIST()+' (IST)','',
+ ...pending.map(t=>'- '+t.section+': '+t.activity+' | '+t.date+' | '+t.status),'',
+ 'Please update the Production Tracker status and any blockers.'];
+ const chat='https://teams.microsoft.com/l/chat/0/0?users='+encodeURIComponent('finny.jason@beeteam.in,jawahar.muthu@beeteam.in')+
+ '&topicName='+encodeURIComponent('Production Reminders')+'&message='+encodeURIComponent(lines.join('\n'));
+ try{Office.context.ui.openBrowserWindow(chat);}catch(e){window.open(chat,'_blank','noopener,noreferrer');}
+ output.append(document.createTextNode(' Teams chat opened. The reminder is a draft; click Send in Teams.'));
+}
+Office.onReady(info=>{
+ if(info.host===Office.HostType.Excel){
+  scanButton.disabled=false;output.textContent='Ready to check this workbook.';
+  scanButton.addEventListener('click',scan);teamsButton.addEventListener('click',openTeams);
+ }
+});
