@@ -43,7 +43,7 @@ def items(path, now=None):
 
 def deliver(body):
     """Send one consolidated test reminder from the authorized Gmail account."""
-    sender="finny.jason@gobeeteam.com"
+    sender="kp@gobeeteam.com"
     password=os.environ["GMAIL_APP_PASSWORD"].replace(" ", "")
     if not password:
         raise RuntimeError("GMAIL_APP_PASSWORD is not configured")
