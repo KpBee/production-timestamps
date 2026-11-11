@@ -2,12 +2,25 @@
 Safe default: preview only. Requires private self-hosted runner with workbook access.
 Dependencies: openpyxl, requests. No third-party mail service.
 """
-import datetime as dt, json, os, pathlib, sys
+import base64, datetime as dt, io, json, os, pathlib, sys
 import openpyxl
 import requests
 
 RECIPIENTS=["finny.jason@beeteam.in","jawahar.muthu@beeteam.in"]
 IST=dt.timezone(dt.timedelta(hours=5,minutes=30))
+
+def token():
+    tenant=os.environ['MS_TENANT_ID']
+    response=requests.post(f'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',data={'grant_type':'client_credentials','client_id':os.environ['MS_CLIENT_ID'],'client_secret':os.environ['MS_CLIENT_SECRET'],'scope':'https://graph.microsoft.com/.default'},timeout=25)
+    response.raise_for_status()
+    return response.json()['access_token']
+
+def sharepoint_workbook():
+    url=os.environ['WORKBOOK_SHARE_URL']
+    share_id='u!'+base64.urlsafe_b64encode(url.encode()).decode().rstrip('=')
+    response=requests.get(f'https://graph.microsoft.com/v1.0/shares/{share_id}/driveItem/content',headers={'Authorization':'Bearer '+token()},timeout=60)
+    response.raise_for_status()
+    return io.BytesIO(response.content)
 
 def items(path, now=None):
     today=(now or dt.datetime.now(IST)).date()
@@ -29,28 +42,26 @@ def items(path, now=None):
     return results
 
 def deliver(body):
-    tenant=os.environ["MS_TENANT_ID"]
-    client=os.environ["MS_CLIENT_ID"]
-    secret=os.environ["MS_CLIENT_SECRET"]
     sender=os.environ["MAIL_SENDER_UPN"]
-    token=requests.post(f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
-        data={"grant_type":"client_credentials","client_id":client,"client_secret":secret,
-              "scope":"https://graph.microsoft.com/.default"},timeout=25)
-    token.raise_for_status()
     mail={"message":{"subject":"Production Tracker: incomplete tasks at 10:10 AM IST",
         "body":{"contentType":"Text","content":body},
         "toRecipients":[{"emailAddress":{"address":x}} for x in RECIPIENTS]},
         "saveToSentItems":True}
     response=requests.post(f"https://graph.microsoft.com/v1.0/users/{sender}/sendMail",
-        json=mail,headers={"Authorization":"Bearer "+token.json()["access_token"]},timeout=30)
+        json=mail,headers={"Authorization":"Bearer "+token()},timeout=30)
     response.raise_for_status()
 
 def main():
-    path=os.environ.get("WORKBOOK_PATH")
-    if not path or not pathlib.Path(path).is_file():
-        print("Not configured: WORKBOOK_PATH must point to the LIVE accessible private workbook.")
+    url=os.environ.get('WORKBOOK_SHARE_URL')
+    path=os.environ.get('WORKBOOK_PATH')
+    if url:
+        source=sharepoint_workbook()
+    elif path and pathlib.Path(path).is_file():
+        source=path
+    else:
+        print('Configure WORKBOOK_SHARE_URL for SharePoint or WORKBOOK_PATH for private drive.')
         return 2
-    pending=items(path)
+    pending=items(source)
     if not pending:
         print("No dated outstanding tasks. No email.")
         return 0
@@ -63,7 +74,7 @@ def main():
         print("DRY RUN: no email sent.")
         return 0
     # Use persistent storage on the self-hosted runner, not an ephemeral GitHub workspace.
-    log=pathlib.Path(os.environ["REMINDER_LOG_PATH"])
+    log=pathlib.Path(os.environ['REMINDER_LOG_PATH'])
     log.parent.mkdir(parents=True,exist_ok=True)
     if log.exists() and day in log.read_text(encoding="utf-8").splitlines():
         print("Already sent on this date; skipping.")
