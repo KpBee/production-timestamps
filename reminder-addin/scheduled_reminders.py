@@ -1,8 +1,8 @@
 """Sample 10:10 IST production reminder dispatcher.
-Safe default: preview only. Requires private self-hosted runner with workbook access.
-Dependencies: openpyxl, requests. No third-party mail service.
+Safe default: preview only. SharePoint read access needs separate authorization.
+Dependencies: openpyxl, requests. Gmail SMTP is used only when SEND_ENABLED=true.
 """
-import base64, datetime as dt, io, json, os, pathlib, sys
+import base64, datetime as dt, email.message, io, json, os, pathlib, smtplib, sys
 import openpyxl
 import requests
 
@@ -42,14 +42,19 @@ def items(path, now=None):
     return results
 
 def deliver(body):
-    sender=os.environ["MAIL_SENDER_UPN"]
-    mail={"message":{"subject":"Production Tracker: incomplete tasks at 10:10 AM IST",
-        "body":{"contentType":"Text","content":body},
-        "toRecipients":[{"emailAddress":{"address":x}} for x in RECIPIENTS]},
-        "saveToSentItems":True}
-    response=requests.post(f"https://graph.microsoft.com/v1.0/users/{sender}/sendMail",
-        json=mail,headers={"Authorization":"Bearer "+token()},timeout=30)
-    response.raise_for_status()
+    """Send one consolidated test reminder from the authorized Gmail account."""
+    sender="muthujawahar2@gmail.com"
+    password=os.environ["GMAIL_APP_PASSWORD"].replace(" ", "")
+    if not password:
+        raise RuntimeError("GMAIL_APP_PASSWORD is not configured")
+    msg=email.message.EmailMessage()
+    msg["From"]=sender
+    msg["To"]=", ".join(RECIPIENTS)
+    msg["Subject"]="Production Tracker: incomplete tasks at 10:10 AM IST"
+    msg.set_content(body)
+    with smtplib.SMTP_SSL("smtp.gmail.com",465,timeout=30) as server:
+        server.login(sender,password)
+        server.send_message(msg)
 
 def main():
     url=os.environ.get('WORKBOOK_SHARE_URL')
