@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="TaskPaneApp">
   <Id>2b5bbca4-69a3-4dd8-8e20-0ab61a8209c3</Id>
-  <Version>0.1.0.0</Version>
+  <Version>0.2.0.0</Version>
   <ProviderName>Bee Team</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="Bee Team Production Reminders (Prototype)"/>
-  <Description DefaultValue="Read-only preview of incomplete production tasks. No emails are sent by the add-in."/>
+  <DisplayName DefaultValue="Bee Team Production Reminders"/>
+  <Description DefaultValue="Check incomplete tasks and prepare a Teams chat reminder for manual sending."/>
   <IconUrl DefaultValue="https://kpbee.github.io/production-timestamps/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://kpbee.github.io/production-timestamps/icon-64.png"/>
   <SupportUrl DefaultValue="https://github.com/KpBee/production-timestamps"/>
