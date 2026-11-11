@@ -3,12 +3,11 @@ Safe default: preview only. Requires private self-hosted runner with workbook ac
 Dependencies: openpyxl, requests. No third-party mail service.
 """
 import datetime as dt, json, os, pathlib, sys
-from zoneinfo import ZoneInfo
 import openpyxl
 import requests
 
 RECIPIENTS=["finny.jason@beeteam.in","jawahar.muthu@beeteam.in"]
-IST=ZoneInfo("Asia/Kolkata")
+IST=dt.timezone(dt.timedelta(hours=5,minutes=30))
 
 def items(path, now=None):
     today=(now or dt.datetime.now(IST)).date()
