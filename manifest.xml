@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="TaskPaneApp">
-  <Id>4cf5f7b8-c31e-4a44-80b6-8c87e065e69b</Id>
-  <Version>1.2.1.0</Version>
-  <ProviderName>Bee Team</ProviderName>
-  <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="Daily Workflow Timestamps"/>
-  <Description DefaultValue="Start and completion timestamps only in Process Workflow Daily Time Log."/>
-  <IconUrl DefaultValue="https://kpbee.github.io/production-timestamps/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://kpbee.github.io/production-timestamps/icon-64.png"/>
-  <SupportUrl DefaultValue="https://github.com/KpBee/production-timestamps"/>
-  <AppDomains><AppDomain>https://kpbee.github.io</AppDomain></AppDomains>
-  <Hosts><Host Name="Workbook"/></Hosts>
-  <DefaultSettings><SourceLocation DefaultValue="https://kpbee.github.io/production-timestamps/taskpane.html?v=1.2.1"/></DefaultSettings>
-  <Permissions>ReadWriteDocument</Permissions>
+<Id>8c0d133e-6ead-43a0-956a-01a5711986e9</Id>
+<Version>2.0.4.0</Version><ProviderName>Bee Team</ProviderName><DefaultLocale>en-US</DefaultLocale>
+<DisplayName DefaultValue="Production Time &amp; Productivity"/>
+<Description DefaultValue="Automated daily workflow timestamps and workbook-local productivity analytics."/>
+<IconUrl DefaultValue="https://kpbee.github.io/production-timestamps/icon-32.png"/>
+<HighResolutionIconUrl DefaultValue="https://kpbee.github.io/production-timestamps/icon-64.png"/>
+<SupportUrl DefaultValue="https://github.com/KpBee/production-timestamps"/>
+<AppDomains><AppDomain>https://kpbee.github.io</AppDomain></AppDomains>
+<Hosts><Host Name="Workbook"/></Hosts>
+<DefaultSettings><SourceLocation DefaultValue="https://kpbee.github.io/production-timestamps/combined-addin/index.html?v=2.0.4"/></DefaultSettings>
+<Permissions>ReadWriteDocument</Permissions>
 </OfficeApp>
