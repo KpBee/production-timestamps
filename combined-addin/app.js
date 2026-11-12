@@ -39,7 +39,7 @@
     enabled=true;
     // SharePoint may coalesce or delay remote events; compare the shared cells periodically.
     setInterval(()=>{queue=queue.then(checkStatuses).catch(e=>message("Sync check error: "+e.message,true));},3000);
-    message("LIVE: Monitoring shared SharePoint statuses F11:F30. Keep this pane open in this Excel session.");
+    message("LIVE: Monitoring SharePoint status changes in F11:F30.");
   }
   async function readStatuses(){
     return Excel.run(async c=>{
@@ -260,12 +260,22 @@
   Office.onReady(async info=>{
     if(info.host!==Office.HostType.Excel){message("Open this add-in inside Microsoft Excel.",true);return;}
     try{
-      if(!Office.context.requirements.isSetSupported("SharedRuntime","1.1")) throw Error("Excel SharedRuntime 1.1 is required for hidden tracking.");
       await verify();
-      await Office.addin.setStartupBehavior(Office.StartupBehavior.load);
-      await refresh();
-      await showRow();
-      await Office.addin.hide();
+      // If auto-start fails, keep the actively registered monitor running.
+      let canHide=Office.context.requirements.isSetSupported("SharedRuntime","1.1");
+      if(canHide){
+        try{await Office.addin.setStartupBehavior(Office.StartupBehavior.load);}
+        catch(e){canHide=false;message("Tracking is LIVE, but automatic startup failed: "+e.message,true);}
+      }
+      // Pane UI/report failures must never prevent timestamp monitoring.
+      try{await refresh();await showRow();}catch(e){console.warn("Optional dashboard refresh failed",e);}
+      // Leave the pane visible when reliable headless startup cannot be confirmed.
+      if(canHide){
+        try{await Office.addin.hide();}
+        catch(e){message("Tracking is LIVE, but the side pane could not hide: "+e.message,true);}
+      }else{
+        message("Tracking is LIVE, but hidden tracking is not supported in this Excel session. Keep this pane open.",true);
+      }
     }
     catch(e){message("NOT TRACKING: "+e.message,true);}
   });
