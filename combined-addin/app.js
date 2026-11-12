@@ -8,7 +8,7 @@
   const excelIST=()=>25569+(Date.now()+330*60000)/86400000;
   const fmt=n=>Number(n).toFixed(2);
   const clean=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  let queue=Promise.resolve(), enabled=false, sheetId=null;
+  let queue=Promise.resolve(), enabled=false, sheetId=null, statusSnapshot=null;
   const message=(s,err=false)=>{$("state").textContent=s;$("state").className=err?"error":"ok";};
   function duration(start,end){
     if(typeof start!=="number"||typeof end!=="number"||end<start)return null;
@@ -34,11 +34,31 @@
       });
       await c.sync();
     });
+    // Start from current workbook state; never backdate already-existing statuses.
+    statusSnapshot=await readStatuses();
     enabled=true;
-    message("LIVE: Monitoring only Process Workflow!F11:F30. Keep this pane open.");
+    // SharePoint may coalesce or delay remote events; compare the shared cells periodically.
+    setInterval(()=>{queue=queue.then(checkStatuses).catch(e=>message("Sync check error: "+e.message,true));},3000);
+    message("LIVE: Monitoring shared SharePoint statuses F11:F30. Keep this pane open in this Excel session.");
+  }
+  async function readStatuses(){
+    return Excel.run(async c=>{
+      const r=c.workbook.worksheets.getItem(SHEET).getRange("F11:F30");
+      r.load("values");await c.sync();return r.values.map(v=>norm(v[0]));
+    });
+  }
+  async function checkStatuses(){
+    if(!enabled)return;
+    const current=await readStatuses();
+    if(!statusSnapshot){statusSnapshot=current;return;}
+    for(let i=0;i<current.length;i++){
+      if(current[i]===statusSnapshot[i])continue;
+      statusSnapshot[i]=current[i];
+      if(current[i]==="in progress"||current[i]==="completed")await stamp(i+FIRST,true);
+    }
   }
   async function handle(ev){
-    if(!enabled|| (ev.source&&ev.source!=="Local"))return;
+    if(!enabled)return;
     if(ev.worksheetId&&ev.worksheetId!==sheetId)return;
     // Excel can report a single cell, a pasted range, or a whole edited row.
     // Only react when the changed rectangle intersects the Status column (F).
@@ -49,9 +69,13 @@
     const left=col(m[1]),right=col(m[3]||m[1]);
     if(left>6||right<6)return;
     const first=Math.max(FIRST,Number(m[2])),last=Math.min(LAST,Number(m[4]||m[2]));
-    for(let r=first;r<=last;r++)await stamp(r);
+    for(let r=first;r<=last;r++){
+      await stamp(r,ev.source==="Remote");
+    }
+    // An event may arrive before a poll; synchronize the baseline so it is not stamped twice.
+    statusSnapshot=await readStatuses();
   }
-  async function stamp(row){
+  async function stamp(row,remote=false){
     let completed=false,activity="";
     await Excel.run(async c=>{
       const s=c.workbook.worksheets.getItem(SHEET),range=s.getRange("A"+row+":G"+row);
@@ -78,7 +102,7 @@
       await c.sync();
     });
     if(completed){
-      try{await recordCompletedRows([row]);message("Completed timestamp saved: "+activity+" (row "+row+").");}
+      try{await recordCompletedRows([row],remote);message("Completed timestamp saved: "+activity+" (row "+row+").");}
       catch(e){message("Timestamp saved, but productivity history could not update: "+e.message,true);}
     }else if(activity) message("Start timestamp captured: "+activity+" (row "+row+").");
     await refresh();
@@ -98,7 +122,7 @@
     }
     await c.sync();return s;
   }
-  async function recordCompletedRows(onlyRows){
+  async function recordCompletedRows(onlyRows,remote=false){
     await Excel.run(async c=>{
       const source=c.workbook.worksheets.getItem(SHEET),data=source.getRange("A11:G30");
       data.load("values");await c.sync();
@@ -115,7 +139,7 @@
       const history=await getOrCreateHistory(c);
       const used=history.getUsedRange(true);used.load(["rowCount","rowIndex","values"]);await c.sync();
       const existing=new Set(used.values.slice(1).map(r=>String(r[0])));
-      const employee=$("employee").value.trim();
+      const employee=remote?"Shared editor (unverified)":($("employee").value.trim()||"Unassigned");
       let next=used.rowIndex+used.rowCount+1;
       for(const s of candidates){
         if(existing.has(s.id))continue;
