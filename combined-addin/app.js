@@ -259,7 +259,14 @@
   $("refresh").onclick=()=>refresh().catch(e=>message("Refresh error: "+e.message,true));
   Office.onReady(async info=>{
     if(info.host!==Office.HostType.Excel){message("Open this add-in inside Microsoft Excel.",true);return;}
-    try{await verify();await refresh();await showRow();}
+    try{
+      if(!Office.context.requirements.isSetSupported("SharedRuntime","1.1")) throw Error("Excel SharedRuntime 1.1 is required for hidden tracking.");
+      await verify();
+      await Office.addin.setStartupBehavior(Office.StartupBehavior.load);
+      await refresh();
+      await showRow();
+      await Office.addin.hide();
+    }
     catch(e){message("NOT TRACKING: "+e.message,true);}
   });
 })();
