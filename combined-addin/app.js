@@ -35,7 +35,7 @@
       await c.sync();
     });
     enabled=true;
-    message("LIVE: Monitoring only Process Workflow!F11:F30. Keep this pane open.");
+    message("LIVE: Monitoring local edits to Process Workflow!F11:F30. The pane may be hidden.");
   }
   async function handle(ev){
     if(!enabled|| (ev.source&&ev.source!=="Local"))return;
@@ -115,7 +115,7 @@
       const history=await getOrCreateHistory(c);
       const used=history.getUsedRange(true);used.load(["rowCount","rowIndex","values"]);await c.sync();
       const existing=new Set(used.values.slice(1).map(r=>String(r[0])));
-      const employee=$("employee").value.trim();
+      const employee=$("employee").value.trim() || "Unassigned";
       let next=used.rowIndex+used.rowCount+1;
       for(const s of candidates){
         if(existing.has(s.id))continue;
@@ -235,7 +235,17 @@
   $("refresh").onclick=()=>refresh().catch(e=>message("Refresh error: "+e.message,true));
   Office.onReady(async info=>{
     if(info.host!==Office.HostType.Excel){message("Open this add-in inside Microsoft Excel.",true);return;}
-    try{await verify();await refresh();await showRow();}
+    try{
+      if (!Office.context.requirements.isSetSupported("SharedRuntime", "1.1")) throw Error("Shared runtime is required for pane-free tracking.");
+      await verify();
+      await Office.addin.setStartupBehavior(Office.StartupBehavior.load);
+      const savedEmployee=localStorage.getItem("bee-tracker-employee") || "";
+      $("employee").value=savedEmployee;
+      $("employee").addEventListener("change",()=>localStorage.setItem("bee-tracker-employee",$("employee").value.trim()));
+      await refresh(); await showRow();
+      // A hidden shared runtime retains event listeners for this Excel session.
+      // Close the pane manually after initial setup; the shared runtime stays active.
+    }
     catch(e){message("NOT TRACKING: "+e.message,true);}
   });
 })();
