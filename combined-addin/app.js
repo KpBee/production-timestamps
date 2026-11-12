@@ -244,7 +244,7 @@
       $("employee").addEventListener("change",()=>localStorage.setItem("bee-tracker-employee",$("employee").value.trim()));
       await refresh(); await showRow();
       // A hidden shared runtime retains event listeners for this Excel session.
-      await Office.addin.hide();
+      // Close the pane manually after initial setup; the shared runtime stays active.
     }
     catch(e){message("NOT TRACKING: "+e.message,true);}
   });
